@@ -26,35 +26,52 @@ body {
     margin: 0;
     background-color: var(--bg-secondary);
     color: var(--text-primary);
-    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* ==========================================================================
-   2. Main Layout & Containers
+   2. Main Layout & Containers (Mobile-First)
    ========================================================================== */
 
 .main-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "diagram"
+        "content";
+    gap: 1.5rem;
+    padding: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.diagram-aspect-wrapper {
+    grid-area: diagram;
+    position: relative;
+    width: 100%;
+    max-width: 858px; /* Prevents it from getting huge on desktop */
+    margin-inline: auto; /* Center it within the grid area */
+    aspect-ratio: 858 / 584;
 }
 
 #process-container {
-    position: relative;
-    width: 858px; /* Intrinsic width of the design */
-    height: 584px; /* Intrinsic height of the design */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     user-select: none;
 }
 
 #central-hub {
+    /* Positioning now relative to the scalable container */
     position: absolute;
-    /* Centered on the SVG's coordinate system */
-    top: 292px;
-    left: 220px;
+    top: 50%; /* 292px / 584px */
+    left: 25.64%; /* 220px / 858px */
+    width: 29.83%;  /* 256px / 858px */
+    height: 43.83%; /* 256px / 584px */
     transform: translate(-50%, -50%);
-    width: 256px;
-    height: 256px;
     background-color: var(--bg-primary);
     border-radius: 50%;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08), 0 8px 15px rgba(0, 0, 0, 0.04);
@@ -65,12 +82,12 @@ body {
     padding: 20px;
     box-sizing: border-box;
     z-index: 10;
-    cursor: default; /* Change cursor since it's no longer clickable */
+    cursor: default;
 }
 
 #hub-title {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: clamp(1rem, 4vw, 1.5rem); /* Fluid font size */
     color: var(--text-primary);
     line-height: 1.3;
 }
@@ -81,74 +98,35 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    overflow: visible; /* Critical for shadows and transforms to not be clipped */
+    overflow: visible;
 }
 
 /* ==========================================================================
-   3. SVG Element Styling (The Process Diagram)
+   3. SVG Element Styling
    ========================================================================== */
 
 .clickable { 
     cursor: pointer; 
 }
 
+/* Use :focus-visible for keyboard-only focus rings */
+.outer-node-group:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 3px;
+    border-radius: 24px;
+}
+
 /* --- Rings & Paths --- */
-
-.Dial_ring_outmost {
-    transition: stroke 0.5s ease; /* Add transition for color change */
-}
-
-.inter-node-path {
-    stroke: var(--brand-accent);
-    stroke-width: 2px;
-    fill: none;
-    opacity: 0; /* Hidden by default, controlled by GSAP */
-}
-
-[class^="connecting_line-"] {
-    stroke: var(--border-primary);
-    stroke-width: 2;
-    fill: none;
-    transition: stroke 0.3s ease; /* Faster transition for snappier feel */
-}
+.Dial_ring_outmost { transition: stroke 0.5s ease; }
+.inter-node-path { stroke: var(--brand-accent); stroke-width: 2px; fill: none; opacity: 0; }
+[class^="connecting_line-"] { stroke: var(--border-primary); stroke-width: 2; fill: none; transition: stroke 0.3s ease; }
 
 /* --- Node Elements --- */
-
-[class^="on_ring_node-"] { 
-    fill: #D9D9D9; /* Inactive inner node color */
-    transition: fill 0.3s ease; /* Faster transition for snappier feel */
-}
-
-[class^="outer_nodes-"] {
-    fill: var(--bg-primary);
-    stroke: var(--border-primary); /* Default border for unselected nodes */
-    stroke-width: 0.25px;
-    transition: fill 0.4s ease, stroke 0.4s ease; /* Added stroke to transition */
-}
-
-.inner-icon-circle {
-    fill: var(--white);
-    filter: url(#node-shadow);
-    transform-box: fill-box; /* Ensures transforms originate from the element's center */
-    transform-origin: center;
-    transition: fill 0.4s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Slight elastic feel */
-}
-
-.icon-placeholder {
-    fill: var(--text-secondary); /* Default icon color */
-    transition: fill 0.4s ease;
-    pointer-events: none; /* Prevents icon from capturing mouse events from its parent group */
-}
-
-.node-text {
-    font-size: 10px;
-    font-weight: 600;
-    fill: var(--text-primary);
-    pointer-events: none;
-    transition: fill 0.4s ease;
-    text-anchor: start;
-    dominant-baseline: middle; /* Ensures true vertical centering */
-}
+[class^="on_ring_node-"] { fill: #D9D9D9; transition: fill 0.3s ease; }
+[class^="outer_nodes-"] { fill: var(--bg-primary); stroke: var(--border-primary); stroke-width: 0.25px; transition: fill 0.4s ease, stroke 0.4s ease; }
+.inner-icon-circle { fill: var(--white); filter: url(#node-shadow); transform-box: fill-box; transform-origin: center; transition: fill 0.4s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.icon-placeholder { fill: var(--text-secondary); transition: fill 0.4s ease; pointer-events: none; }
+.node-text { font-size: 10px; font-weight: 600; fill: var(--text-primary); pointer-events: none; transition: fill 0.4s ease; text-anchor: start; dominant-baseline: middle; }
 
 /* ==========================================================================
    4. Interactive States (Hover & Active)
@@ -159,40 +137,24 @@ body {
 #process-container.hub-hover .outer-node-group:not(.active) .inner-icon-circle {
     transform: scale(1.1); 
 }
-
 .outer-node-group.clickable:not(.active):hover > [class^="outer_nodes-"],
 #process-container.hub-hover .outer-node-group:not(.active) > [class^="outer_nodes-"] {
     fill: var(--primary-hover);
-    stroke: var(--brand-accent); /* Theme color border on hover */
+    stroke: var(--brand-accent);
 }
-
 .outer-node-group.clickable:not(.active):hover .icon-placeholder,
 #process-container.hub-hover .outer-node-group:not(.active) .icon-placeholder {
     fill: var(--brand-accent);
 }
 
 /* --- Central Hub Hover State --- */
-#process-container.hub-hover .Dial_ring_outmost {
-    stroke: var(--brand-accent);
-}
+#process-container.hub-hover .Dial_ring_outmost { stroke: var(--brand-accent); }
 
 /* --- Active States (Overrides Hover) --- */
-[class^="on_ring_node-"].active { 
-    fill: var(--brand-accent); 
-}
-
-.outer-node-group.active > [class^="outer_nodes-"] {
-    fill: var(--brand-accent);
-    stroke: var(--brand-accent); /* Theme color border when active */
-}
-
-.outer-node-group.active > .icon-placeholder {
-    fill: var(--brand-accent);
-}
-
-.outer-node-group.active .node-text {
-    fill: var(--white);
-}
+[class^="on_ring_node-"].active { fill: var(--brand-accent); }
+.outer-node-group.active > [class^="outer_nodes-"] { fill: var(--brand-accent); stroke: var(--brand-accent); }
+.outer-node-group.active > .icon-placeholder { fill: var(--brand-accent); }
+.outer-node-group.active .node-text { fill: var(--white); }
 
 /* Gradient lines for active state */
 .connecting_line-1.active { stroke: url(#line-gradient-1); }
@@ -201,37 +163,85 @@ body {
 .connecting_line-4.active { stroke: url(#line-gradient-4); }
 .connecting_line-5.active { stroke: url(#line-gradient-5); }
 
-
 /* ==========================================================================
-   5. Content Panel (Bottom Description Area)
+   5. Content Panel (Simplified - No Accordion)
    ========================================================================== */
 
 #content-panel {
+    grid-area: content;
     width: 100%;
-    max-width: 600px;
-    min-height: 130px; /* Ensures consistent height during transitions */
+    min-height: 130px; /* Re-establish min-height for consistency */
     display: flex;
     align-items: center;
-    text-align: center;
     background-color: var(--bg-primary);
-    padding: 2rem;
+    padding: 1.5rem;
     border-radius: 16px;
     box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.04);
     box-sizing: border-box;
+    text-align: center;
 }
-
-.content-wrapper { 
-    width: 100%; 
-}
-
+.content-wrapper { width: 100%; }
 #content-title { 
     margin: 0 0 0.5rem 0; 
-    font-size: 1.25rem; 
+    font-size: 1.125rem; 
 }
-
 #content-description { 
     margin: 0; 
     color: var(--text-primary); 
     line-height: 1.6; 
-    font-size: 1.125rem; 
+    font-size: 1rem; 
+}
+
+/* ==========================================================================
+   6. Media Queries & Responsive Overrides
+   ========================================================================== */
+
+/* --- Mobile P: Hide SVG text for clarity --- */
+@media (max-width: 479px) {
+    .node-text {
+        display: none;
+    }
+}
+
+/* --- Disable hover effects on touch devices --- */
+@media (hover: none) and (pointer: coarse) {
+    .outer-node-group.clickable:not(.active):hover .inner-icon-circle {
+        transform: none; /* Prevent scaling on tap */
+    }
+    #process-container.hub-hover .outer-node-group:not(.active) .inner-icon-circle {
+        transform: none;
+    }
+}
+
+/* --- Desktop Layout --- */
+@media (min-width: 992px) {
+    body {
+        overflow: auto; /* Allow scrolling on desktop if needed */
+    }
+    .main-container {
+        grid-template-columns: minmax(0, 858px) minmax(0, 450px);
+        grid-template-areas: "diagram content";
+        gap: 2rem;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        max-width: 1440px;
+        margin-inline: auto;
+    }
+
+    #content-panel {
+        max-width: 450px;
+        text-align: left;
+        align-self: center; /* Vertically center in its grid area */
+    }
+
+    #content-title { font-size: 1.25rem; }
+    #content-description { font-size: 1.125rem; }
+}
+
+/* --- Widescreen: Increase base font size --- */
+@media (min-width: 1921px) {
+    html {
+        font-size: 110%;
+    }
 }

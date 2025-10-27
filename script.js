@@ -18,7 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let rotationTween;
-    
+
+    const canHover = window.matchMedia('(hover: hover) and (pointer: fine)');
+
     // ==========================================================================
     // 2. DOM ELEMENT SELECTION
     // ==========================================================================
@@ -28,13 +30,14 @@ document.addEventListener('DOMContentLoaded', () => {
     for (let i = 0; i < totalNodes; i++) {
         const index = i + 1;
         const zeroBasedIndex = i;
+        const outerNodeGroup = document.querySelector(`.outer-node-group[data-index="${zeroBasedIndex}"]`);
         nodeMap.push({
             line: document.querySelector(`.connecting_line-${index}`),
             ringNode: document.querySelector(`.on_ring_node-${index}`),
-            outerNodeGroup: document.querySelector(`.outer-node-group[data-index="${zeroBasedIndex}"]`),
+            outerNodeGroup: outerNodeGroup,
             clickableElements: [
                 document.querySelector(`.on_ring_node-${index}`),
-                document.querySelector(`.outer-node-group[data-index="${zeroBasedIndex}"]`)
+                outerNodeGroup
             ]
         });
     }
@@ -68,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         state.isAnimating = true;
 
+        // Deactivate previous node
         if (previousIndex !== -1) {
             const oldNode = nodeMap[previousIndex];
             oldNode.line.classList.remove('active');
@@ -104,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tl.to(tracerDot, { opacity: 0, duration: 0.2 }, ">")
               .to(path, { opacity: 0, duration: config.fadeDuration, ease: 'power1.out' }, "<");
 
-        } else {
+        } else { // Direct activation, no path animation (e.g., initial state)
             if (targetIndex !== -1) {
                 const newNode = nodeMap[targetIndex];
                 newNode.line.classList.add('active');
@@ -137,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================================
 
     nodeMap.forEach((node) => {
+        // Click/Tap listeners
         node.clickableElements.forEach(element => {
             if (element) {
                 element.addEventListener('click', () => {
@@ -145,82 +150,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         });
+        
+        // Keyboard listeners
+        if (node.outerNodeGroup) {
+            node.outerNodeGroup.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const targetIndex = parseInt(node.outerNodeGroup.dataset.index, 10);
+                    goToState(targetIndex);
+                }
+            });
+        }
     });
 
-    // --- Central Hub Hover Animations ---
-    centralHub.addEventListener('mouseenter', () => {
-        // Add class to trigger CSS-based hover effects
-        processContainer.classList.add('hub-hover');
-        
-        // Speed up the rotation to 4x
-        gsap.to(rotationTween, { timeScale: 4, duration: 0.8, ease: 'power2.out' });
-
-        // Move outer nodes inward
-        nodeMap.forEach(node => {
-            if (node.hoverTranslate) {
-                gsap.to(node.outerNodeGroup, {
-                    x: node.hoverTranslate.x,
-                    y: node.hoverTranslate.y,
-                    duration: 1.2,
-                    ease: 'elastic.out(1, 0.6)'
-                });
-            }
-        });
-    });
-
-    centralHub.addEventListener('mouseleave', () => {
-        // Remove class to revert CSS-based hover effects
-        processContainer.classList.remove('hub-hover');
-
-        // Return rotation to normal speed
-        gsap.to(rotationTween, { timeScale: 1, duration: 0.8, ease: 'power2.out' });
-        
-        // Return outer nodes to their original positions
-        nodeMap.forEach(node => {
-            gsap.to(node.outerNodeGroup, {
-                x: 0,
-                y: 0,
-                duration: 1.0,
-                ease: 'elastic.out(1, 0.6)'
+    // --- Central Hub Hover Animations (Desktop only) ---
+    if (canHover.matches) {
+        centralHub.addEventListener('mouseenter', () => {
+            processContainer.classList.add('hub-hover');
+            gsap.to(rotationTween, { timeScale: 4, duration: 0.8, ease: 'power2.out' });
+            nodeMap.forEach(node => {
+                if (node.hoverTranslate) {
+                    gsap.to(node.outerNodeGroup, { x: node.hoverTranslate.x, y: node.hoverTranslate.y, duration: 1.2, ease: 'elastic.out(1, 0.6)' });
+                }
             });
         });
-    });
+        centralHub.addEventListener('mouseleave', () => {
+            processContainer.classList.remove('hub-hover');
+            gsap.to(rotationTween, { timeScale: 1, duration: 0.8, ease: 'power2.out' });
+            nodeMap.forEach(node => {
+                gsap.to(node.outerNodeGroup, { x: 0, y: 0, duration: 1.0, ease: 'elastic.out(1, 0.6)' });
+            });
+        });
+    }
 
     function initialize() {
         gsap.set(tracerDot, { opacity: 0 });
         gsap.from(".main-container", { opacity: 0, duration: 0.8, ease: 'power2.out' });
         
+        // --- Ambient Animations ---
         const rotatingGroup = document.querySelector(".rotating-group");
         let rotationProxy = { angle: 0 }; 
-        
         rotationTween = gsap.to(rotationProxy, {
-            angle: 360,
-            duration: config.rotationSpeed,
-            ease: "none",
-            repeat: -1,
+            angle: 360, duration: config.rotationSpeed, ease: "none", repeat: -1,
             onUpdate: () => rotatingGroup.setAttribute('transform', `translate(110 146) rotate(${rotationProxy.angle})`)
         });
-        
         gsap.to(centralHub, { scale: 1.02, duration: 4, ease: 'sine.inOut', repeat: -1, yoyo: true });
 
-        const hubCenter = { x: 110, y: 146 };
-        const moveDistance = 6;
-
-        nodeMap.forEach(node => {
-            const bbox = node.outerNodeGroup.getBBox();
-            const nodeCenter = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
-            
-            const vecX = hubCenter.x - nodeCenter.x;
-            const vecY = hubCenter.y - nodeCenter.y;
-            
-            const magnitude = Math.sqrt(vecX * vecX + vecY * vecY);
-            
-            node.hoverTranslate = {
-                x: (vecX / magnitude) * moveDistance,
-                y: (vecY / magnitude) * moveDistance,
-            };
-        });
-
+        // --- Pre-calculate hover vectors for hub animation ---
+        if (canHover.matches) {
+            const hubCenter = { x: 110, y: 146 };
+            const moveDistance = 6;
+            nodeMap.forEach(node => {
+                const bbox = node.outerNodeGroup.getBBox();
+                const nodeCenter = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+                const vecX = hubCenter.x - nodeCenter.x;
+                const vecY = hubCenter.y - nodeCenter.y;
+                const magnitude = Math.sqrt(vecX * vecX + vecY * vecY);
+                node.hoverTranslate = {
+                    x: (vecX / magnitude) * moveDistance,
+                    y: (vecY / magnitude) * moveDistance,
+                };
+            });
+        }
+        
+        // --- Start the interaction ---
         goToState(0);
     }
 
